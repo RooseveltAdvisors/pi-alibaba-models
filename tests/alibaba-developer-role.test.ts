@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { stream as anthropicStream } from "@earendil-works/pi-ai/api/anthropic-messages";
 import { convertMessages } from "@earendil-works/pi-ai/api/openai-completions";
 import { buildCloudModels, buildPlanModels } from "../extensions/alibaba";
 
@@ -20,8 +21,21 @@ const context = {
   tools: [],
 };
 
-const wireMessages = (model: unknown, supportsDeveloperRole: boolean) =>
-  convertMessages(model as any, context as any, { supportsDeveloperRole } as any);
+const wireMessages = (model: any) => convertMessages(model, context as any, { ...model.compat } as any);
+
+async function captureAnthropicPayload(model: unknown) {
+  let payload: unknown;
+  const stream = anthropicStream(model as any, context as any, {
+    client: { messages: { create: () => { throw new Error("unexpected live call"); } } },
+    cacheRetention: "none",
+    onPayload: (value: unknown) => {
+      payload = value;
+      throw new Error("capture payload");
+    },
+  } as any);
+  await stream.result();
+  return payload as { system?: unknown; messages: { role: string; content: unknown }[] };
+}
 
 async function postToAlibaba(messages: unknown[]) {
   const server = Bun.serve({
@@ -48,15 +62,30 @@ describe("Alibaba provider request roles", () => {
     expect(model.api).toBe("openai-completions");
     expect(model.compat?.supportsDeveloperRole).toBe(false);
 
-    const rejectedResponse = await postToAlibaba(wireMessages(model, true));
+    const rejectedModel = { ...model, compat: { ...model.compat, supportsDeveloperRole: true } };
+    const rejectedResponse = await postToAlibaba(wireMessages(rejectedModel));
     expect(rejectedResponse.status).toBe(400);
     expect(rejectedResponse.body.error?.message).toBe(ALIBABA_ROLE_ERROR);
 
-    const accepted = wireMessages(model, false);
+    const accepted = wireMessages(model);
     expect((await postToAlibaba(accepted)).status).toBe(200);
     expect(accepted.map((message) => message.role)).toEqual(["system", "user", "assistant", "assistant", "tool", "user"]);
     expect(accepted[0]).toEqual({ role: "system", content: "FIRSTMATE_OPERATIONAL_INSTRUCTIONS" });
     expect(accepted.slice(1).every((message) => JSON.stringify(message).includes("FIRSTMATE_OPERATIONAL_INSTRUCTIONS"))).toBe(false);
+  });
+
+  test("preserves Anthropic system separation and role order from the built model", async () => {
+    const [model] = buildCloudModels([baseModel], "dashscope.example", "anthropic-messages");
+    const payload = await captureAnthropicPayload(model);
+
+    expect(model.api).toBe("anthropic-messages");
+    expect(model.baseUrl).toBe("https://dashscope.example/apps/anthropic");
+    expect(payload.system).toEqual([{ type: "text", text: "FIRSTMATE_OPERATIONAL_INSTRUCTIONS" }]);
+    expect(payload.messages.map((message) => message.role)).toEqual(["user", "assistant", "assistant", "user", "user"]);
+    expect(payload.messages[3].content).toEqual([{
+      type: "tool_result", tool_use_id: "call_1", content: "TOOL_RESULT", is_error: false,
+    }]);
+    expect(JSON.stringify(payload.messages)).not.toContain("FIRSTMATE_OPERATIONAL_INSTRUCTIONS");
   });
 
   test("sets the compatibility override on both Alibaba OpenAI shapes only", () => {
