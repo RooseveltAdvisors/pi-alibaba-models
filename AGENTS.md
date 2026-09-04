@@ -4,7 +4,6 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 - Add durable project-specific notes here as they are discovered through real work.
 - Alibaba OpenAI-compatible models force developer instructions to the accepted system role; see `extensions/alibaba.ts` and `bun test tests/alibaba-developer-role.test.ts`.
-- House fork: origin is RooseveltAdvisors/pi-alibaba-models, upstream is Fornace/pi-alibaba-models; never open PRs or issues upstream. Fork posture lives in VISION.md.
 
 ## Maintaining this file
 
