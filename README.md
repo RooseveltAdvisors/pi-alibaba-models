@@ -1,5 +1,16 @@
 # pi-alibaba-models
 
+## Demo
+
+![Install, authenticate, choose a model, and chat with Alibaba Coding Plan](demo/setup.png)
+Install the extension and connect a Coding Plan token in `/login`.
+
+![Alibaba Coding Plan models in the pi model picker](demo/picker.png)
+Choose Qwen 3.7 Max (or another live Alibaba model) per chat.
+
+![A reply from Qwen 3.7 Max through Alibaba Coding Plan](demo/reply.png)
+Start chatting with native reasoning and Alibaba’s live model catalog.
+
 The complete [`pi`](https://github.com/badlogic/pi-mono) extension for Alibaba's model lineup — **Qwen 3.7 Max**, **Qwen 3.7 Plus** (both 1M context), **Qwen 3.6 Max**, **Qwen 3.6 Plus**, **DeepSeek V4 Pro**, **Kimi K2.6**, **GLM-5**, **MiniMax M2.5**, and the rest of the catalog. Native thinking-level support, both Anthropic- and OpenAI-shaped APIs, both International and China endpoints, both Coding Plan subscriptions and pay-per-token Cloud keys.
 
 ## Features
