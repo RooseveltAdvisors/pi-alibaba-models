@@ -5,6 +5,9 @@ import path from "node:path";
 import { removeCredential, getCredential, setCredential } from "./auth-compat.ts";
 import { readCatalogJSON } from "./catalog-json.ts";
 
+// pi 1.x widened ProviderModelConfig to a chat | image | classifier union; Alibaba only registers chat models.
+type ChatModelConfig = Extract<ProviderModelConfig, { reasoning: boolean }>;
+
 // ── Paths ─────────────────────────────────────────────────────────────
 const HOME_DIR = path.join(os.homedir(), ".pi", "agent");
 const CONFIG_PATH = path.join(HOME_DIR, "alibaba-config.json");
@@ -169,7 +172,7 @@ function resolvePlanEndpoints(credentials?: { access?: string; refresh?: string 
   };
 }
 
-export function buildPlanModels(defs: PlanModelDef[], openaiUrl: string, anthropicUrl: string): ProviderModelConfig[] {
+export function buildPlanModels(defs: PlanModelDef[], openaiUrl: string, anthropicUrl: string): ChatModelConfig[] {
   return defs.map((m) => {
     const useOpenAI = !!m.openaiOnly || /deepseek/i.test(m.id);
     return {
@@ -185,9 +188,9 @@ export function buildPlanModels(defs: PlanModelDef[], openaiUrl: string, anthrop
 }
 
 // ── Cloud builders ────────────────────────────────────────────────────
-interface CloudCache { fetchedAt: number; domain: string; models: ProviderModelConfig[]; }
+interface CloudCache { fetchedAt: number; domain: string; models: ChatModelConfig[]; }
 
-async function fetchCloudModels(domain: string, apiKey: string, _force = false): Promise<ProviderModelConfig[]> {
+async function fetchCloudModels(domain: string, apiKey: string, _force = false): Promise<ChatModelConfig[]> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 4000);
   try {
@@ -223,7 +226,7 @@ async function fetchCloudModels(domain: string, apiKey: string, _force = false):
   } finally { clearTimeout(t); }
 }
 
-export function buildCloudModels(models: ProviderModelConfig[], domain: string, fmt: string): ProviderModelConfig[] {
+export function buildCloudModels(models: ChatModelConfig[], domain: string, fmt: string): ChatModelConfig[] {
   return models.map((m) => {
     const useOpenAI = /deepseek/i.test(m.id) || fmt === "openai-completions";
     return {
@@ -262,7 +265,7 @@ const readCloudKey = (): string | null => {
 // fetched and replaces it. We use a real, region-agnostic id (`qwen-plus`,
 // present on every DashScope account) so it also works for an env-var user
 // before the first refresh, and never lingers as an orphan after login.
-const CLOUD_LOGIN_SEED: ProviderModelConfig[] = [{
+const CLOUD_LOGIN_SEED: ChatModelConfig[] = [{
   id: "qwen-plus",
   name: "Qwen Plus",
   reasoning: false,
@@ -307,7 +310,7 @@ async function loadPlanDefs(force: boolean, credentials?: { access?: string; ref
   }
 }
 
-async function loadCloudDefs(domain: string, apiKey: string, force: boolean): Promise<ProviderModelConfig[]> {
+async function loadCloudDefs(domain: string, apiKey: string, force: boolean): Promise<ChatModelConfig[]> {
   const cache = readJSON<CloudCache | null>(CLOUD_CACHE_PATH, null);
   const usable = cache?.models?.length && cache.domain === domain ? cache : null;
   if (!force && usable && isCacheFresh(usable.fetchedAt)) return rehydrate(usable.models);
@@ -326,7 +329,7 @@ async function loadCloudDefs(domain: string, apiKey: string, force: boolean): Pr
 // ── Module-level mutable model lists ─────────────────────────────────
 // Populated by the async extension factory before provider registration.
 let planDefs: PlanModelDef[] = [];
-let cloudDefs: ProviderModelConfig[] = [];
+let cloudDefs: ChatModelConfig[] = [];
 
 // ── Migration ─────────────────────────────────────────────────────────
 const isPlanKey = (k: string) => k.startsWith("sk-sp-") || k.startsWith("sk-tok-");

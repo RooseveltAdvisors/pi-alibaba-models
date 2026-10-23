@@ -10,15 +10,15 @@ const baseModel = {
   compat: { thinkingFormat: "qwen" },
 };
 const context = {
-  systemPrompt: "FIRSTMATE_OPERATIONAL_INSTRUCTIONS",
+  // pi 1.x carries the system prompt as a leading system message; context.systemPrompt is ignored.
   messages: [
+    { role: "system", content: "FIRSTMATE_OPERATIONAL_INSTRUCTIONS", timestamp: 0 },
     { role: "user", content: "USER_BEFORE_TOOL", timestamp: 1 },
     { role: "assistant", content: [{ type: "text", text: "ASSISTANT_HANDOFF" }], api: "openai-completions", provider: "alibaba-cloud", model: "qwen3.7-max", timestamp: 2 },
     { role: "assistant", content: [{ type: "toolCall", id: "call_1", name: "lookup", arguments: { query: "x" } }], api: "openai-completions", provider: "alibaba-cloud", model: "qwen3.7-max", timestamp: 3 },
     { role: "toolResult", toolCallId: "call_1", toolName: "lookup", content: [{ type: "text", text: "TOOL_RESULT" }], isError: false, timestamp: 4 },
     { role: "user", content: "USER_AFTER_TOOL", timestamp: 5 },
   ],
-  tools: [],
 };
 
 const wireMessages = (model: any) => convertMessages(model, context as any, { ...model.compat } as any);
